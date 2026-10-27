@@ -54,4 +54,4 @@ Prérequis : macOS 13+ et les outils en ligne de commande Xcode (`xcode-select -
 
 Produit `build/Select2Admin.app` (universel Apple Silicon + Intel) et `build/Select2Admin-macOS.zip`.
 
-Le workflow GitHub Actions (`.github/workflows/build.yml`) compile à chaque push sur `main` et publie le zip en release pour chaque tag `v*`.
+Le workflow GitHub Actions (`.github/workflows/build.yml`) compile à chaque push sur `main` et publie le zip dans la release correspondant à la version de `Resources/Info.plist` (`CFBundleShortVersionString`).

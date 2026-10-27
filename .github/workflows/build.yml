@@ -3,7 +3,6 @@ name: Build macOS
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -16,12 +15,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build
         run: ./build.sh
+      - name: Version
+        id: version
+        run: echo "v=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: Select2Admin-macOS
           path: build/Select2Admin-macOS.zip
+      # Publie (ou met à jour) la release correspondant à la version de Info.plist
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.version.outputs.v }}
+          name: Select2Admin ${{ steps.version.outputs.v }} pour macOS
+          target_commitish: ${{ github.sha }}
           files: build/Select2Admin-macOS.zip
+          body: |
+            Télécharger **Select2Admin-macOS.zip**, décompresser, glisser l'app dans Applications.
+            Premier lancement : clic droit → Ouvrir (ou Réglages Système → Confidentialité et sécurité → Ouvrir quand même), puis autoriser l'accès Accessibilité.
+            Voir le README pour le détail.
