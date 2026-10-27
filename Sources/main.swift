@@ -476,10 +476,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             none.isEnabled = false
             classeursMenu.addItem(none)
         }
-        for c in config.classeurs {
-            let it = NSMenuItem(title: c.name, action: nil, keyEquivalent: "")
+        for (i, c) in config.classeurs.enumerated() {
+            let hasID = c.url.contains(Config.placeholder)
+            let it = item(hasID ? "\(c.name)…" : c.name, #selector(openClasseurFromMenu(_:)))
             it.toolTip = c.url
-            it.isEnabled = false
+            it.tag = i
             classeursMenu.addItem(it)
         }
         classeursMenu.addItem(.separator())
@@ -511,10 +512,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         setIcon()
     }
 
+    /// Clic sur un classeur : demande l'identifiant si l'URL contient {Selected_Text}, sinon ouvre l'URL telle quelle
+    @objc private func openClasseurFromMenu(_ sender: NSMenuItem) {
+        config.reload()
+        guard config.classeurs.indices.contains(sender.tag) else { return }
+        let c = config.classeurs[sender.tag]
+        if !c.url.contains(Config.placeholder) {
+            open(c, with: "")
+            return
+        }
+        guard let id = askIdentifier(title: c.name) else { return }
+        let text = id.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.joined(separator: " ")
+        guard !text.isEmpty else { NSSound.beep(); return }
+        open(c, with: text)
+    }
+
     @objc private func manualEntry() {
+        guard let id = askIdentifier(title: "Ouvrir une armoire") else { return }
+        config.reload()
+        handle(id)
+    }
+
+    private func askIdentifier(title: String) -> String? {
         NSApp.activate(ignoringOtherApps: true)
         let a = NSAlert()
-        a.messageText = "Ouvrir une armoire"
+        a.messageText = title
         a.informativeText = "Identifiant de l'armoire :"
         a.addButton(withTitle: "Ouvrir")
         a.addButton(withTitle: "Annuler")
@@ -525,16 +547,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         a.accessoryView = field
         a.window.initialFirstResponder = field
-        if a.runModal() == .alertFirstButtonReturn {
-            config.reload()
-            handle(field.stringValue)
-        }
+        return a.runModal() == .alertFirstButtonReturn ? field.stringValue : nil
     }
 
     @objc private func editConfig() {
-        NSWorkspace.shared.open([config.fileURL],
-                                withApplicationAt: URL(fileURLWithPath: "/System/Applications/TextEdit.app"),
-                                configuration: NSWorkspace.OpenConfiguration())
+        // Éditeur associé aux fichiers .ini, sinon TextEdit
+        if NSWorkspace.shared.urlForApplication(toOpen: config.fileURL) != nil {
+            NSWorkspace.shared.open(config.fileURL)
+        } else {
+            NSWorkspace.shared.open([config.fileURL],
+                                    withApplicationAt: URL(fileURLWithPath: "/System/Applications/TextEdit.app"),
+                                    configuration: NSWorkspace.OpenConfiguration())
+        }
     }
 
     @objc private func revealConfig() {
